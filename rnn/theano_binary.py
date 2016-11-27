@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+# based on https://github.com/gwtaylor/theano-rnn/blob/master/rnn.py
+
 """ Vanilla RNN
 @author Graham Taylor
 """
@@ -519,6 +521,9 @@ def test_binary(multiple_out=False, n_epochs=250):
 
 
 if __name__ == "__main__":
+
+    raise NotImplementedError('still working on this')
+
     logging.basicConfig(level=logging.INFO)
     t0 = time.time()
     # test_real()

@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
-""" from http://peterroelants.github.io/posts/rnn_implementation_part02/
+""" algo based on http://peterroelants.github.io/posts/rnn_implementation_part02/
+skeleton code from MinPy (https://github.com/dmlc/minpy)
+by shadowleaves 2016
 """
 
 # Python imports
@@ -26,10 +28,50 @@ from minpy.nn.io import NDArrayIter
 from minpy import core
 
 # from minpy.core import convert_args
-from numpy_binary import create_dataset, printSample
+# from numpy_binary import create_dataset, printSample
 
 # from utils.timedate import timing
 
+
+def create_dataset(nb_samples, sequence_len):
+    """Create a dataset for binary addition and return as input, targets."""
+    max_int = 2**(sequence_len - 1)  # Maximum integer that can be added
+    # Transform integer in binary format
+    format_str = '{:0' + str(sequence_len) + 'b}'
+    nb_inputs = 2  # Add 2 binary numbers
+    nb_outputs = 1  # Result is 1 binary number
+    X = np.zeros((nb_samples, sequence_len, nb_inputs))  # Input samples
+    T = np.zeros((nb_samples, sequence_len, nb_outputs))  # Target samples
+    # Fill up the input and target matrix
+    for i in xrange(nb_samples):
+        # Generate random numbers to add
+        nb1 = np.random.randint(0, max_int)
+        nb2 = np.random.randint(0, max_int)
+        # Fill current input and target row.
+        # Note that binary numbers are added from right to left,
+        # but our RNN reads from left to right, so reverse the sequence.
+        X[i, :, 0] = list(reversed([int(b) for b in format_str.format(nb1)]))
+        X[i, :, 1] = list(reversed([int(b) for b in format_str.format(nb2)]))
+        T[i, :, 0] = list(reversed([int(b)
+                                    for b in format_str.format(nb1 + nb2)]))
+    return X, T
+
+
+# Show an example input and target
+def printSample(x1, x2, t, y=None):
+    """Print a sample in a more visual way."""
+    x1 = ''.join([str(int(d)) for d in x1])
+    x2 = ''.join([str(int(d)) for d in x2])
+    t = ''.join([str(int(d[0])) for d in t])
+    if y is not None:
+        y = ''.join([str(int(d[0])) for d in y])
+    print('x1:   {:s}   {:2d}'.format(x1, int(''.join(reversed(x1)), 2)))
+    print('x2: + {:s}   {:2d} '.format(x2, int(''.join(reversed(x2)), 2)))
+    print('      -------   --')
+    print('t:  = {:s}   {:2d}'.format(t, int(''.join(reversed(t)), 2)))
+    if y is not None:
+        print('y:  = {:s}   {:2d}'.format(y, int(''.join(reversed(y)), 2)))
+    print '\n'
 
 # @convert_args
 def rmsprop_mom(x, dx, config=None):
@@ -349,3 +391,28 @@ if __name__ == '__main__':
                     break
             break
                 # print ''
+
+
+'''
+MIT License
+
+Copyright (c) 2016 shadowleaves
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+'''
