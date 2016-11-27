@@ -14,6 +14,7 @@ import numpy as np  # Matrix and vector computation package
 # is reproducable
 # from utils.timedate import timing
 
+
 def create_dataset(nb_samples, sequence_len):
     """Create a dataset for binary addition and return as input, targets."""
     max_int = 2**(sequence_len - 1)  # Maximum integer that can be added
@@ -249,10 +250,11 @@ class RnnBinaryAdder(object):
     def getParamGrads(self, X, T):
         """Return the gradients with respect to input X and target T as a list.
         The list has the same order as the get_params_iter iterator."""
+        # t0 = timing()
         recIn, S, Z, Y = self.forward(X)
         gWout, gBout, gWrec, gBrec, gWin, gBin, gS0 = self.backward(
             X, Y, recIn, S, T)
-        return [g for g in itertools.chain(
+        grads = [g for g in itertools.chain(
                 np.nditer(gS0),
                 np.nditer(gWin),
                 np.nditer(gBin),
@@ -260,6 +262,10 @@ class RnnBinaryAdder(object):
                 np.nditer(gBrec),
                 np.nditer(gWout),
                 np.nditer(gBout))]
+
+        # timing(t0, 'grad', 'ms')
+
+        return grads
 
     def cost(self, Y, T):
         """Return the cost of input X w.r.t. targets T."""

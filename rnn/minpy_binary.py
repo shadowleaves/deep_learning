@@ -28,7 +28,7 @@ from minpy import core
 # from minpy.core import convert_args
 from numpy_binary import create_dataset, printSample
 
-from utils.timedate import timing
+# from utils.timedate import timing
 
 
 # @convert_args
@@ -78,37 +78,37 @@ class CustomSolver(Solver):
         self.update_rule = rmsprop_mom
 
 
-    def _step(self, batch):
-        """
-        Make a single gradient update. This is called by train() and should not
-        be called manually.
-        """
-        # Compute loss and gradient
-        def loss_func(*params):
-            # It seems that params are not used in forward function. But since we will pass
-            # model.params as arguments, we are ok here.
-            predict = self.model.forward_batch(batch, mode='train')
-            return self.model.loss_batch(batch, predict)
+    # def _step(self, batch):
+    #     """
+    #     Make a single gradient update. This is called by train() and should not
+    #     be called manually.
+    #     """
+    #     # Compute loss and gradient
+    #     def loss_func(*params):
+    #         # It seems that params are not used in forward function. But since we will pass
+    #         # model.params as arguments, we are ok here.
+    #         predict = self.model.forward_batch(batch, mode='train')
+    #         return self.model.loss_batch(batch, predict)
 
-        param_arrays = list(self.model.params.values())
-        param_keys = list(self.model.params.keys())
-        grad_and_loss_func = core.grad_and_loss(
-            loss_func, argnum=range(len(param_arrays)))
+    #     param_arrays = list(self.model.params.values())
+    #     param_keys = list(self.model.params.keys())
+    #     grad_and_loss_func = core.grad_and_loss(
+    #         loss_func, argnum=range(len(param_arrays)))
 
-        t0 = timing()
-        grad_arrays, loss = grad_and_loss_func(*param_arrays)
-        timing(t0, 'grad', 'ms')
-        grads = dict(zip(param_keys, grad_arrays))
+    #     t0 = timing()
+    #     grad_arrays, loss = grad_and_loss_func(*param_arrays)
+    #     timing(t0, 'grad', 'ms')
+    #     grads = dict(zip(param_keys, grad_arrays))
 
-        self.loss_history.append(loss.asnumpy())
+    #     self.loss_history.append(loss.asnumpy())
 
-        # Perform a parameter update
-        for p, w in self.model.params.items():
-            dw = grads[p]
-            config = self.optim_configs[p]
-            next_w, next_config = self.update_rule(w, dw, config)
-            self.model.params[p] = next_w
-            self.optim_configs[p] = next_config
+    #     # Perform a parameter update
+    #     for p, w in self.model.params.items():
+    #         dw = grads[p]
+    #         config = self.optim_configs[p]
+    #         next_w, next_config = self.update_rule(w, dw, config)
+    #         self.model.params[p] = next_w
+    #         self.optim_configs[p] = next_config
 
     def _reset(self):
         """
@@ -236,16 +236,6 @@ class RNNModel(ModelBase):
                        init_rule=zeros
                        )
 
-        # self.params['Wx']
-
-        # self.tensorInput = TensorLinear(
-        #     nb_of_inputs, nb_of_states, 3)  # Input layer
-        # self.rnnUnfold = RecurrentStateUnfold(
-        #     nb_of_states, sequence_len)  # Recurrent layer
-        # self.tensorOutput = TensorLinear(
-        #     nb_of_states, nb_of_outputs, 3)  # Linear output transform
-        # self.classifier = LogisticClassifier()  # Classification output
-
     def forward(self, X, mode):
         # seq_len = X.shape[1]
         batch_size = X.shape[0]
@@ -283,7 +273,7 @@ if __name__ == '__main__':
 
     # Create dataset
     nb_train = 2000  # Number of training samples
-    nb_test = 500
+    nb_test = 100
     # Addition of 2 n-bit numbers can result in a n+1 bit number
     sequence_len = 7  # Length of the binary sequence
 
