@@ -1,7 +1,7 @@
 # pylint:skip-file
 import sys
 import random
-import time
+# import time
 sys.path.insert(0, "../../python")
 import mxnet as mx
 import numpy as np
@@ -88,13 +88,14 @@ if __name__ == '__main__':
 
     network = get_net(vocab_size)
     devs = mx.cpu()
-    model = mx.model.FeedForward(ctx=devs,
-                                 symbol=network,
-                                 num_epoch=20,
-                                 learning_rate=0.03,
-                                 momentum=0.9,
-                                 wd=0.0000,
-                                 initializer=mx.init.Xavier(factor_type="in", magnitude=2.34))
+    model = mx.model.FeedForward(
+        ctx=devs,
+        symbol=network,
+        num_epoch=20,
+        learning_rate=0.03,
+        momentum=0.9,
+        wd=0.0000,
+        initializer=mx.init.Xavier(factor_type="in", magnitude=2.34))
     import logging
     head = '%(asctime)-15s %(message)s'
     logging.basicConfig(level=logging.DEBUG, format=head)

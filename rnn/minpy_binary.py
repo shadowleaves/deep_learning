@@ -17,9 +17,8 @@ import numpy as np  # Matrix and vector computation package
 # is reproducable
 
 # sys.path.append('/home/hyan/codebase/minpy/minpy')
-
-#from minpy.context import set_context, gpu
-#set_context(gpu(0))  # set the global context as gpu(0)
+# from minpy.context import set_context, gpu
+# set_context(gpu(0))  # set the global context as gpu(0)
 
 from minpy.nn import layers
 from minpy.nn.model import ModelBase
@@ -30,7 +29,7 @@ from minpy import core
 # from minpy.core import convert_args
 # from numpy_binary import create_dataset, printSample
 
-# from utils.timedate import timing
+from utils.timedate import timing
 
 
 def create_dataset(nb_samples, sequence_len):
@@ -74,6 +73,8 @@ def printSample(x1, x2, t, y=None):
     print '\n'
 
 # @convert_args
+
+
 def rmsprop_mom(x, dx, config=None):
     """
     Uses the RMSProp update rule, which uses a moving average of squared gradient
@@ -86,14 +87,14 @@ def rmsprop_mom(x, dx, config=None):
     - epsilon: Small scalar used for smoothing to avoid dividing by zero.
     - cache: Moving average of second moments of gradients.
     """
-    if config is None: config = {}
+    if config is None:
+        config = {}
     config.setdefault('learning_rate', 1e-2)
     config.setdefault('decay_rate', 0.99)
     config.setdefault('epsilon', 1e-8)
     config.setdefault('momentum', 0.9)
     config.setdefault('cache', np.zeros_like(x))
     v = config.get('velocity', np.zeros_like(x))
-
 
     cache = config['cache']
     cache = cache * config['decay_rate'] + dx**2 * (1 - config['decay_rate'])
@@ -112,6 +113,7 @@ def rmsprop_mom(x, dx, config=None):
     config['cache'] = cache
     return next_x, config
 
+
 class CustomSolver(Solver):
     """custom solver for binary addition"""
 
@@ -119,38 +121,37 @@ class CustomSolver(Solver):
         super(CustomSolver, self).__init__(*kargs, **kwargs)
         self.update_rule = rmsprop_mom
 
+    def _step(self, batch):
+        """
+        Make a single gradient update. This is called by train() and should not
+        be called manually.
+        """
+        # Compute loss and gradient
+        def loss_func(*params):
+            # It seems that params are not used in forward function. But since we will pass
+            # model.params as arguments, we are ok here.
+            predict = self.model.forward_batch(batch, mode='train')
+            return self.model.loss_batch(batch, predict)
 
-    # def _step(self, batch):
-    #     """
-    #     Make a single gradient update. This is called by train() and should not
-    #     be called manually.
-    #     """
-    #     # Compute loss and gradient
-    #     def loss_func(*params):
-    #         # It seems that params are not used in forward function. But since we will pass
-    #         # model.params as arguments, we are ok here.
-    #         predict = self.model.forward_batch(batch, mode='train')
-    #         return self.model.loss_batch(batch, predict)
+        param_arrays = list(self.model.params.values())
+        param_keys = list(self.model.params.keys())
+        grad_and_loss_func = core.grad_and_loss(
+            loss_func, argnum=range(len(param_arrays)))
 
-    #     param_arrays = list(self.model.params.values())
-    #     param_keys = list(self.model.params.keys())
-    #     grad_and_loss_func = core.grad_and_loss(
-    #         loss_func, argnum=range(len(param_arrays)))
+        t0 = timing()
+        grad_arrays, loss = grad_and_loss_func(*param_arrays)
+        timing(t0, 'grad', 'ms')
+        grads = dict(zip(param_keys, grad_arrays))
 
-    #     t0 = timing()
-    #     grad_arrays, loss = grad_and_loss_func(*param_arrays)
-    #     timing(t0, 'grad', 'ms')
-    #     grads = dict(zip(param_keys, grad_arrays))
+        self.loss_history.append(loss.asnumpy())
 
-    #     self.loss_history.append(loss.asnumpy())
-
-    #     # Perform a parameter update
-    #     for p, w in self.model.params.items():
-    #         dw = grads[p]
-    #         config = self.optim_configs[p]
-    #         next_w, next_config = self.update_rule(w, dw, config)
-    #         self.model.params[p] = next_w
-    #         self.optim_configs[p] = next_config
+        # Perform a parameter update
+        for p, w in self.model.params.items():
+            dw = grads[p]
+            config = self.optim_configs[p]
+            next_w, next_config = self.update_rule(w, dw, config)
+            self.model.params[p] = next_w
+            self.optim_configs[p] = next_config
 
     def _reset(self):
         """
@@ -243,12 +244,13 @@ def xavier(shape, config):
     a = np.sqrt(6.0 / (n_in + n_out))
     return mp.random.uniform(-a, a, (n_in, n_out))
 
-zeros = lambda shape, config : mp.zeros(shape)
+zeros = lambda shape, config: mp.zeros(shape)
+
 
 class RNNModel(ModelBase):
     """RNN to perform binary addition of 2 numbers."""
 
-    def __init__(self, #batch_size=100,
+    def __init__(self,  # batch_size=100,
                  input_size=2,
                  hidden_size=3,
                  num_classes=1,
@@ -330,7 +332,6 @@ if __name__ == '__main__':
     # Print the first sample
     printSample(X_train[0, :, 0], X_train[0, :, 1], T_train[0, :, :])
 
-
     # Set hyper-parameters
     lmbd = 0.5  # Rmsprop lambda
     learning_rate = 0.05  # Learning rate
@@ -390,7 +391,7 @@ if __name__ == '__main__':
                 if i > 5:
                     break
             break
-                # print ''
+            # print ''
 
 
 '''
