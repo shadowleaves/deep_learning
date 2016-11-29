@@ -121,37 +121,37 @@ class CustomSolver(Solver):
         super(CustomSolver, self).__init__(*kargs, **kwargs)
         self.update_rule = rmsprop_mom
 
-    def _step(self, batch):
-        """
-        Make a single gradient update. This is called by train() and should not
-        be called manually.
-        """
-        # Compute loss and gradient
-        def loss_func(*params):
-            # It seems that params are not used in forward function. But since we will pass
-            # model.params as arguments, we are ok here.
-            predict = self.model.forward_batch(batch, mode='train')
-            return self.model.loss_batch(batch, predict)
+    # def _step(self, batch):
+    #     """
+    #     Make a single gradient update. This is called by train() and should not
+    #     be called manually.
+    #     """
+    #     # Compute loss and gradient
+    #     def loss_func(*params):
+    #         # It seems that params are not used in forward function. But since we will pass
+    #         # model.params as arguments, we are ok here.
+    #         predict = self.model.forward_batch(batch, mode='train')
+    #         return self.model.loss_batch(batch, predict)
 
-        param_arrays = list(self.model.params.values())
-        param_keys = list(self.model.params.keys())
-        grad_and_loss_func = core.grad_and_loss(
-            loss_func, argnum=range(len(param_arrays)))
+    #     param_arrays = list(self.model.params.values())
+    #     param_keys = list(self.model.params.keys())
+    #     grad_and_loss_func = core.grad_and_loss(
+    #         loss_func, argnum=range(len(param_arrays)))
 
-        t0 = timing()
-        grad_arrays, loss = grad_and_loss_func(*param_arrays)
-        timing(t0, 'grad', 'ms')
-        grads = dict(zip(param_keys, grad_arrays))
+    #     t0 = timing()
+    #     grad_arrays, loss = grad_and_loss_func(*param_arrays)
+    #     timing(t0, 'grad', 'ms')
+    #     grads = dict(zip(param_keys, grad_arrays))
 
-        self.loss_history.append(loss.asnumpy())
+    #     self.loss_history.append(loss.asnumpy())
 
-        # Perform a parameter update
-        for p, w in self.model.params.items():
-            dw = grads[p]
-            config = self.optim_configs[p]
-            next_w, next_config = self.update_rule(w, dw, config)
-            self.model.params[p] = next_w
-            self.optim_configs[p] = next_config
+    #     # Perform a parameter update
+    #     for p, w in self.model.params.items():
+    #         dw = grads[p]
+    #         config = self.optim_configs[p]
+    #         next_w, next_config = self.update_rule(w, dw, config)
+    #         self.model.params[p] = next_w
+    #         self.optim_configs[p] = next_config
 
     def _reset(self):
         """
@@ -235,6 +235,9 @@ class CustomSolver(Solver):
         #     import pdb
         #     pdb.set_trace()
 
+        import pdb
+        pdb.set_trace()
+
         return acc_count / num_samples
 
 
@@ -310,6 +313,7 @@ class RNNModel(ModelBase):
         # return layers.temporal_softmax_loss(Y, T, mask)
         # return layers.softmax_loss(predict, y)
 
+
 if __name__ == '__main__':
 
     # import matplotlib
@@ -340,7 +344,7 @@ if __name__ == '__main__':
     mb_size = 100  # Size of the minibatches (number of samples)
 
     # Create the network
-    nb_of_states = 4  # Number of states in the recurrent layer
+    # nb_of_states = 4  # Number of states in the recurrent layer
     model = RNNModel()
     # Set the initial parameters
     # Number of parameters in the network
@@ -369,7 +373,7 @@ if __name__ == '__main__':
                               'decay_rate': 0.5,
                           },
                           verbose=True,
-                          print_every=1)
+                          print_every=10)
 
     solver.init()
     solver.train()
