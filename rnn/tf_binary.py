@@ -94,9 +94,9 @@ class ToySequenceData(object):
         return batch_data, batch_labels
 
 
-# def rnn_step(x, state, wx, wh, b):
-#     """RNN loop"""
-#     return tf.tanh(tf.matmul(x, wx) + tf.matmul(state, wh) + b)
+def rnn_step(x, state, wx, wh, b):
+    """RNN loop"""
+    return tf.tanh(tf.matmul(x, wx) + tf.matmul(state, wh) + b)
 
 
 def RNN(x, wx, wh, b, wa, ba,
@@ -115,8 +115,8 @@ def RNN(x, wx, wh, b, wa, ba,
     # Define a lstm cell with tensorflow
     for i in xrange(n_steps):
         x_step = x[:, i, :]
-        state = tf.tanh(tf.matmul(x_step, wx) + tf.matmul(state, wh) + b)
-        # state = rnn_step(, state, wx, wh, b)
+        # state = tf.tanh(tf.matmul(x_step, wx) + tf.matmul(state, wh) + b)
+        state = rnn_step(x_step, state, wx, wh, b)
         z = tf.matmul(state, wa) + ba
         # z = tf.sigmoid(z)
         output.append(z)
@@ -164,9 +164,6 @@ def main():
     # tf Graph input
     x = tf.placeholder("float", [batch_size, seq_len, n_inputs])
     y = tf.placeholder("float", [batch_size, seq_len, n_outputs])
-
-    # A placeholder for indicating each sequence length
-    # seqlen = tf.placeholder(tf.int32, [None])
 
     # Define weights
     # tf.set_random_seed(seed)
