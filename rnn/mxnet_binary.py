@@ -179,56 +179,56 @@ def loss_func(label, pred, ep=1e-10):
     return loss
 
 
-class RMSProp(mx.optimizer.Optimizer):
+# class RMSProp(mx.optimizer.Optimizer):
 
-    def __init__(self, decay=0.95, momentum=0.9, **kwargs):
-        super(RMSProp, self).__init__(**kwargs)
-        self.decay = decay
-        self.momentum = momentum
+#     def __init__(self, decay=0.95, momentum=0.9, **kwargs):
+#         super(RMSProp, self).__init__(**kwargs)
+#         self.decay = decay
+#         self.momentum = momentum
 
-    def create_state(self, index, weight):
-        """Create additional optimizer state: mean, variance
-        Parameters
-        ----------
-        weight : NDArray
-            The weight data
-        """
-        return (mx.nd.zeros(weight.shape, weight.context),  # cache
-                # mx.nd.zeros(weight.shape, weight.context),  # g
-                mx.nd.zeros(weight.shape, weight.context))  # delta
+#     def create_state(self, index, weight):
+#         """Create additional optimizer state: mean, variance
+#         Parameters
+#         ----------
+#         weight : NDArray
+#             The weight data
+#         """
+#         return (mx.nd.zeros(weight.shape, weight.context),  # cache
+#                 # mx.nd.zeros(weight.shape, weight.context),  # g
+#                 mx.nd.zeros(weight.shape, weight.context))  # delta
 
-    def update(self, index, weight, grad, state, ep=1e-6):
-        """Update the parameters.
-        Parameters
-        ----------
-        index : int
-            An unique integer key used to index the parameters
-        weight : NDArray
-            weight ndarray
-        grad : NDArray
-            grad ndarray
-        state : NDArray or other objects returned by init_state
-            The auxiliary state used in optimization.
-        """
-        assert(isinstance(weight, mx.nd.NDArray))
-        assert(isinstance(grad, mx.nd.NDArray))
-        lr = self._get_lr(index)
-        # wd = self._get_wd(index)
-        self._update_count(index)
+#     def update(self, index, weight, grad, state, ep=1e-6):
+#         """Update the parameters.
+#         Parameters
+#         ----------
+#         index : int
+#             An unique integer key used to index the parameters
+#         weight : NDArray
+#             weight ndarray
+#         grad : NDArray
+#             grad ndarray
+#         state : NDArray or other objects returned by init_state
+#             The auxiliary state used in optimization.
+#         """
+#         assert(isinstance(weight, mx.nd.NDArray))
+#         assert(isinstance(grad, mx.nd.NDArray))
+#         lr = self._get_lr(index)
+#         # wd = self._get_wd(index)
+#         self._update_count(index)
 
-        cache, delta = state
-        # grad = grad * self.rescale_grad
-        # if self.clip_gradient is not None:
-        # grad = clip(grad, -self.clip_gradient, self.clip_gradient)
-        cache[:] = (1 - self.decay) * (grad * grad) + self.decay * cache
-        # g[:] = (1 - self.decay) * grad + self.decay * g
+#         cache, delta = state
+#         # grad = grad * self.rescale_grad
+#         # if self.clip_gradient is not None:
+#         # grad = clip(grad, -self.clip_gradient, self.clip_gradient)
+#         cache[:] = (1 - self.decay) * (grad * grad) + self.decay * cache
+#         # g[:] = (1 - self.decay) * grad + self.decay * g
 
-        grad_norm = grad / mx.nd.sqrt(cache + ep)  # + wd * weight
-        delta[:] = (self.momentum) * delta - lr * grad_norm
-        weight[:] += delta
+#         grad_norm = grad / mx.nd.sqrt(cache + ep)  # + wd * weight
+#         delta[:] = (self.momentum) * delta - lr * grad_norm
+#         weight[:] += delta
 
-        # import pdb
-        # pdb.set_trace()
+#         # import pdb
+#         # pdb.set_trace()
 
 if __name__ == '__main__':
 
