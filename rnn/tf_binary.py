@@ -142,7 +142,7 @@ def main():
     # Parameters
     # learning_rate = 0.05
     # training_iters = 1000000
-    n_epochs = 50
+    n_epochs = 10
     batch_size = 100
     display_step = 100
 

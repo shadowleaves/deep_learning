@@ -5,9 +5,9 @@ import numpy as np
 from collections import namedtuple
 
 
-RNNState = namedtuple("RNNState", ["h"])
-RNNParam = namedtuple("RNNParam", ["i2h_weight", "i2h_bias",
-                                   "h2h_weight", "h2h_bias"])
+# RNNState = namedtuple("RNNState", ["h"])
+# RNNParam = namedtuple("RNNParam", ["i2h_weight", "i2h_bias",
+#                                    "h2h_weight", "h2h_bias"])
 
 # RNNModel = namedtuple("RNNModel", ["rnn_exec", "symbol",
 #                                    "init_states", "last_states",
@@ -46,24 +46,15 @@ class DataIter(mx.io.DataIter):
         self.provide_label = [('label', (batch_size, ))]
 
     def __iter__(self):
-        # print 'begin'
-        # batch_data = []
-        # batch_label = []
-        # batch_label_weight = []
         for i in range(self.n_samples / self.batch_size):
 
             batch_data = np.random.sample((self.batch_size, self.num_inputs))
             batch_label = np.random.sample((self.batch_size, ))
-            # batch_label_weight.append(label_weight)
             data_all = [mx.nd.array(batch_data)] + self.init_state_arrays
             label_all = [mx.nd.array(batch_label), ]
 
             data_names = ['data'] + self.init_state_names
             label_names = ['label']
-            # batch_data = []
-            # batch_label = []
-            # import pdb
-            # pdb.set_trace()
             yield SimpleBatch(data_names, data_all, label_names, label_all)
 
     def reset(self):
@@ -87,10 +78,8 @@ if __name__ == '__main__':
     #                                    shuffle=True)
 
     init_states = [('init_h', (batch_size, num_hidden)), ]
-    data_train = DataIter(nb_train, batch_size, num_inputs,
-                          init_states)
-    data_eval = DataIter(500, batch_size, num_inputs,
-                         init_states)
+    data_train = DataIter(nb_train, batch_size, num_inputs, init_states)
+    data_eval = DataIter(500, batch_size, num_inputs, init_states)
 
     input_ = mx.symbol.Variable('data')
     wx = mx.sym.Variable('wx', shape=(num_hidden, num_inputs))
