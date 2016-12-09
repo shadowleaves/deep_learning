@@ -321,7 +321,7 @@ if __name__ == '__main__':
                                label_names=('label',),
                                )
 
-        if True:
+        if False:
             module.bind(data_shapes=data_train.provide_data,
                         label_shapes=data_train.provide_label,
                         for_training=True,  # default
@@ -347,10 +347,8 @@ if __name__ == '__main__':
                     module.update()
                     module.update_metric(eval_metric=eval_metric,
                                          labels=batch.label)
-                    name, loss = eval_metric.get_name_value()[0]
 
+                name, loss = eval_metric.get_name_value()[0]
                 print loss
-                # import pdb
-                # pdb.set_trace()
 
     timing(t0, 'mxnet', 's')
