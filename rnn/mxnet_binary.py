@@ -272,22 +272,30 @@ if __name__ == '__main__':
                      batch_size=batch_size)
 
     # mod = mx.mod.Module(sym)
+    # from sys import platform
+    # ctx = mx.context.gpu(0) if platform == 'darwin' else mx.context.cpu(0)
 
+    arg_params = {
+        'init_h': mx.nd.zeros((batch_size, num_hidden)),
+        'wx': xavier((num_hidden, n_inputs)),
+        'wh': xavier((num_hidden, num_hidden)),
+        'b': mx.nd.zeros((num_hidden, )),
+        'wa': xavier((n_labels, num_hidden)),
+        'ba': mx.nd.zeros((n_labels, )),
+    }
+
+    from utils.timedate import timing
     import logging
     head = '%(asctime)-15s %(message)s'
     logging.basicConfig(level=logging.DEBUG, format=head)
 
-    # from sys import platform
-    # ctx = mx.context.gpu(0) if platform == 'darwin' else mx.context.cpu(0)
-
-    from utils.timedate import timing
-
-    optimizer = mx.optimizer.RMSProp(learning_rate=0.02,
-                                     gamma1=0.5,
-                                     gamma2=0.8,
-                                     # decay=0.5,  # decay, gamma1
-                                     # momentum=0.8,  # momentum, gamma2
-                                     )
+    opt_params = {'learning_rate': 0.01,
+                  'gamma1': 0.5,
+                  'gamma2': 0.8,
+                  # decay=0.5,  # decay, gamma1
+                  # momentum=0.8,  # momentum, gamma2
+                  }
+    # optimizer = mx.optimizer.RMSProp(**opt_params)
     eval_metric = mx.metric.create(loss_func)
     n_epochs = 20
 
@@ -297,17 +305,11 @@ if __name__ == '__main__':
             # ctx=ctx,
             symbol=sym,
             num_epoch=n_epochs,
-            optimizer=optimizer,
-            # optimizer_params=optimizer_params,
-            eval_metric=eval_metric,
-            arg_params={
-                'init_h': mx.nd.zeros((batch_size, num_hidden)),
-                'wx': xavier((num_hidden, n_inputs)),
-                'wh': xavier((num_hidden, num_hidden)),
-                'b': mx.nd.zeros((num_hidden, )),
-                'wa': xavier((n_labels, num_hidden)),
-                'ba': mx.nd.zeros((n_labels, )),
-            },
+            optimizer='RMSProp',
+            # optimizer_params=opt_params,
+            # eval_metric=eval_metric,
+            arg_params=arg_params,
+            **opt_params
         )
         model.fit(X=data_train,
                   eval_metric=eval_metric,
@@ -319,46 +321,36 @@ if __name__ == '__main__':
                                label_names=('label',),
                                )
 
-        module.bind(data_shapes=data_train.provide_data,
-                    label_shapes=data_train.provide_label,
-                    for_training=True,  # default
-                    )
+        if True:
+            module.bind(data_shapes=data_train.provide_data,
+                        label_shapes=data_train.provide_label,
+                        for_training=True,  # default
+                        )
 
-        module.init_params(
-            arg_params={
-                'init_h': mx.nd.zeros((batch_size, num_hidden)),
-                'wx': xavier((num_hidden, n_inputs)),
-                'wh': xavier((num_hidden, num_hidden)),
-                'b': mx.nd.zeros((num_hidden, )),
-                'wa': xavier((n_labels, num_hidden)),
-                'ba': mx.nd.zeros((n_labels, )),
-            })
+            module.init_params(arg_params=arg_params)
 
-        module.init_optimizer(kvstore='local', optimizer=optimizer)
+            module.fit(data_train,
+                       optimizer='RMSProp',  # mx.optimizer.RMSProp,
+                       optimizer_params=opt_params,
+                       num_epoch=n_epochs,
+                       eval_metric=eval_metric,
+                       )
+        else:
+            module.init_optimizer(kvstore='local',
+                                  optimizer='RMSProp',
+                                  optimizer_params=opt_params)
 
-        if False:
-            pass
-            # module.fit(data_train,
-            #            optimizer_params={
-            #                'learning_rate': 0.01, 'momentum': 0.9},
-            #            num_epoch=n_epochs,
-            #            eval_metric=eval_metric,
-            #            )
+            for epoch in xrange(n_epochs):
+                for idx, batch in enumerate(data_train):
+                    module.forward(batch, is_train=True)
+                    module.backward()
+                    module.update()
+                    module.update_metric(eval_metric=eval_metric,
+                                         labels=batch.label)
+                    name, loss = eval_metric.get_name_value()[0]
 
-        for epoch in xrange(n_epochs):
-            for idx, batch in enumerate(data_train):
-                module.forward(batch, is_train=True)
-                module.backward()
-                module.update()
-                module.update_metric(eval_metric=eval_metric,
-                                     labels=batch.label)
-
-            res = module.score(data_train, loss_func,
-                               # score_end_callback=eval_end_callback,
-                               # batch_end_callback=eval_batch_end_callback,
-                               epoch=epoch)
-            print res
-            # import pdb
-            # pdb.set_trace()
+                print loss
+                # import pdb
+                # pdb.set_trace()
 
     timing(t0, 'mxnet', 's')
