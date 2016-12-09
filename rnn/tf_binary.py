@@ -142,7 +142,6 @@ def main():
     # Parameters
     # learning_rate = 0.05
     # training_iters = 1000000
-    n_epochs = 10
     batch_size = 100
     display_step = 100
 
@@ -153,8 +152,9 @@ def main():
     n_outputs = 1  # linear sequence or not
 
     # Create training samples
-    seed = 2
+    seed = 5
     np.random.seed(seed=seed)
+    tf.set_random_seed(seed)
     train_size = 2000
     test_size = 100
     seq_len = 7
@@ -166,7 +166,6 @@ def main():
     y = tf.placeholder("float", [batch_size, seq_len, n_outputs])
 
     # Define weights
-    # tf.set_random_seed(seed)
     wx = xavier((n_inputs, n_hidden))
     # bx = tf.Variable(tf.zeros([n_hidden, ]))
 
@@ -206,10 +205,14 @@ def main():
 
     # Launch the graph
     # epoch = 0
+    n_epochs = 100
+    from utils.timedate import timing
+
     with tf.Session() as sess:
         sess.run(init)
 
         # step = 1
+        t0 = timing()
         for epoch in xrange(n_epochs):
             print ('epoch: %d' % epoch)
             # Keep training until reach max iterations
@@ -234,6 +237,7 @@ def main():
                 step += 1
 
         print("Optimization Finished!")
+        timing(t0, 'tensorflow')
 
         # Calculate accuracy
         test_data = testset.data

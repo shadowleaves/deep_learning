@@ -161,8 +161,8 @@ class DataIter(mx.io.DataIter):
                 batch_label = []
                 yield SimpleBatch(data_names, data_all, label_names, label_all)
 
-    def reset(self):
-        pass
+    # def reset(self):
+    #     pass
 
 
 def xavier(shape, coef=1.0):
@@ -277,18 +277,29 @@ if __name__ == '__main__':
     head = '%(asctime)-15s %(message)s'
     logging.basicConfig(level=logging.DEBUG, format=head)
 
-    if True:
+    # from sys import platform
+    # ctx = mx.context.gpu(0) if platform == 'darwin' else mx.context.cpu(0)
+
+    from utils.timedate import timing
+
+    optimizer = mx.optimizer.RMSProp(learning_rate=0.02,
+                                     gamma1=0.5,
+                                     gamma2=0.8,
+                                     # decay=0.5,  # decay, gamma1
+                                     # momentum=0.8,  # momentum, gamma2
+                                     )
+    eval_metric = mx.metric.create(loss_func)
+    n_epochs = 20
+
+    t0 = timing()
+    if False:
         model = mx.model.FeedForward(
+            # ctx=ctx,
             symbol=sym,
-            num_epoch=10,
-            optimizer=mx.optimizer.RMSProp(
-                learning_rate=0.02,
-                gamma1=0.5,
-                gamma2=0.8,
-                # decay=0.5,  # decay, gamma1
-                # momentum=0.8,  # momentum, gamma2
-            ),
-            eval_metric=loss_func,
+            num_epoch=n_epochs,
+            optimizer=optimizer,
+            # optimizer_params=optimizer_params,
+            eval_metric=eval_metric,
             arg_params={
                 'init_h': mx.nd.zeros((batch_size, num_hidden)),
                 'wx': xavier((num_hidden, n_inputs)),
@@ -299,7 +310,55 @@ if __name__ == '__main__':
             },
         )
         model.fit(X=data_train,
-                  eval_metric=loss_func,
+                  eval_metric=eval_metric,
                   batch_end_callback=mx.callback.Speedometer(batch_size, 20),
                   )
-    pass
+    else:
+        module = mx.mod.Module(sym,
+                               data_names=('data',),
+                               label_names=('label',),
+                               )
+
+        module.bind(data_shapes=data_train.provide_data,
+                    label_shapes=data_train.provide_label,
+                    for_training=True,  # default
+                    )
+
+        module.init_params(
+            arg_params={
+                'init_h': mx.nd.zeros((batch_size, num_hidden)),
+                'wx': xavier((num_hidden, n_inputs)),
+                'wh': xavier((num_hidden, num_hidden)),
+                'b': mx.nd.zeros((num_hidden, )),
+                'wa': xavier((n_labels, num_hidden)),
+                'ba': mx.nd.zeros((n_labels, )),
+            })
+
+        module.init_optimizer(kvstore='local', optimizer=optimizer)
+
+        if False:
+            pass
+            # module.fit(data_train,
+            #            optimizer_params={
+            #                'learning_rate': 0.01, 'momentum': 0.9},
+            #            num_epoch=n_epochs,
+            #            eval_metric=eval_metric,
+            #            )
+
+        for epoch in xrange(n_epochs):
+            for idx, batch in enumerate(data_train):
+                module.forward(batch, is_train=True)
+                module.backward()
+                module.update()
+                module.update_metric(eval_metric=eval_metric,
+                                     labels=batch.label)
+
+            res = module.score(data_train, loss_func,
+                               # score_end_callback=eval_end_callback,
+                               # batch_end_callback=eval_batch_end_callback,
+                               epoch=epoch)
+            print res
+            # import pdb
+            # pdb.set_trace()
+
+    timing(t0, 'mxnet', 's')
