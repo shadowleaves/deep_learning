@@ -320,14 +320,13 @@ if __name__ == '__main__':
                                data_names=('data',),
                                label_names=('label',),
                                )
+        module.bind(data_shapes=data_train.provide_data,
+                    label_shapes=data_train.provide_label,
+                    for_training=True,  # default
+                    )
+        module.init_params(arg_params=arg_params)
 
         if False:
-            module.bind(data_shapes=data_train.provide_data,
-                        label_shapes=data_train.provide_label,
-                        for_training=True,  # default
-                        )
-
-            module.init_params(arg_params=arg_params)
 
             module.fit(data_train,
                        optimizer='RMSProp',  # mx.optimizer.RMSProp,
@@ -348,7 +347,7 @@ if __name__ == '__main__':
                     module.update_metric(eval_metric=eval_metric,
                                          labels=batch.label)
 
-                name, loss = eval_metric.get_name_value()[0]
-                print loss
+                res = module.score(data_train, eval_metric)
+                print res[0]
 
     timing(t0, 'mxnet', 's')

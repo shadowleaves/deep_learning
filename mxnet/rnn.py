@@ -1,92 +1,119 @@
-# import sys
-# sys.path.insert(0, "../../python/")
 import mxnet as mx
-# import numpy as np
-from collections import namedtuple
-# import time
-# import math
-
-RNNState = namedtuple("RNNState", ["h"])
-RNNParam = namedtuple("RNNParam", ["i2h_weight", "i2h_bias",
-                                   "h2h_weight", "h2h_bias"])
-RNNModel = namedtuple("RNNModel", ["rnn_exec", "symbol",
-                                   "init_states", "last_states",
-                                   "seq_data", "seq_labels", "seq_outputs",
-                                   "param_blocks"])
 
 
-def rnn(num_hidden, in_data, prev_state, param,
-        seqidx, layeridx, dropout=0., batch_norm=False):
-    if dropout > 0.:
-        in_data = mx.sym.Dropout(data=in_data, p=dropout)
-    import pdb
-    pdb.set_trace()
-    i2h = mx.sym.FullyConnected(data=in_data,
-                                weight=param.i2h_weight,
-                                bias=param.i2h_bias,
+def rnn_step(input_, state, wx, wh, b, num_hidden):
+    # num_hidden = wh.shape[0]
+    # update
+    i2h = mx.sym.FullyConnected(data=input_,
+                                weight=wx,
+                                no_bias=True,
                                 num_hidden=num_hidden,
-                                name="t%d_l%d_i2h" % (seqidx, layeridx))
-    h2h = mx.sym.FullyConnected(data=prev_state.h,
-                                weight=param.h2h_weight,
-                                bias=param.h2h_bias,
+                                name='i2h')
+    # memory
+    h2h = mx.sym.FullyConnected(data=state,
+                                weight=wh,
+                                bias=b,
                                 num_hidden=num_hidden,
-                                name="t%d_l%d_h2h" % (seqidx, layeridx))
-    hidden = i2h + h2h
-
-    hidden = mx.sym.Activation(data=hidden, act_type="tanh")
-    if batch_norm:
-        hidden = mx.sym.BatchNorm(data=hidden)
-    return RNNState(h=hidden)
+                                name='h2h')
+    # activation
+    return mx.sym.Activation(data=i2h + h2h, act_type="tanh")
+    # return hidden
 
 
-def rnn_unroll(num_rnn_layer, seq_len, input_size,
-               num_hidden, num_embed, num_label, dropout=0., batch_norm=False):
+def rnn_unroll(wx, wh, b, wa, ba,
+               seq_len, n_inputs, num_hidden, n_labels, batch_size):
 
-    embed_weight = mx.sym.Variable("embed_weight")
-    cls_weight = mx.sym.Variable("cls_weight")
-    cls_bias = mx.sym.Variable("cls_bias")
-    param_cells = []
-    last_states = []
-    for i in range(num_rnn_layer):
-        param_cells.append(RNNParam(
-            i2h_weight=mx.sym.Variable("l%d_i2h_weight" % i),
-            i2h_bias=mx.sym.Variable("l%d_i2h_bias" % i),
-            h2h_weight=mx.sym.Variable("l%d_h2h_weight" % i),
-            h2h_bias=mx.sym.Variable("l%d_h2h_bias" % i)))
-        state = RNNState(h=mx.sym.Variable("l%d_init_h" % i))
-        last_states.append(state)
-    assert(len(last_states) == num_rnn_layer)
+    # n_embed = n_inputs
+    # we = mx.sym.Variable('we')
+    hidden = mx.sym.Variable('init_h')
 
-    loss_all = []
-    for seqidx in range(seq_len):
-        # embeding layer
-        data = mx.sym.Variable("data/%d" % seqidx)
+    data = mx.sym.Variable('data')
+    # data = mx.sym.transpose(data=data, axis=[0, 1])
+    label = mx.sym.Variable('label')
+    x_mat = mx.sym.SliceChannel(
+        data=data, num_outputs=seq_len, axis=1, squeeze_axis=False)
 
-        hidden = mx.sym.Embedding(data=data, weight=embed_weight,
-                                  input_dim=input_size,
-                                  output_dim=num_embed,
-                                  name="t%d_embed" % seqidx)
-        # stack RNN
-        for i in range(num_rnn_layer):
-            if i == 0:
-                dp = 0.
-            else:
-                dp = dropout
-            next_state = rnn(num_hidden, in_data=hidden,
-                             prev_state=last_states[i],
-                             param=param_cells[i],
-                             seqidx=seqidx, layeridx=i, dropout=dp,
-                             batch_norm=batch_norm)
-            hidden = next_state.h
-            last_states[i] = next_state
-        # decoder
-        if dropout > 0.:
-            hidden = mx.sym.Dropout(data=hidden, p=dropout)
-        fc = mx.sym.FullyConnected(data=hidden, weight=cls_weight,
-                                   bias=cls_bias,
-                                   num_hidden=num_label)
-        sm = mx.sym.SoftmaxOutput(data=fc,
-                                  label=mx.sym.Variable('label/%d' % seqidx),
-                                  name='t%d_sm' % seqidx)
-        loss_all.append(sm)
-    return mx.sym.Group(loss_all)
+    output = []
+    label = mx.sym.SliceChannel(
+        data=label, num_outputs=seq_len, axis=1, squeeze_axis=True)
+
+    # label = mx.sym.transpose(label, axis=[1, 0, 2])
+    for i in xrange(seq_len):
+        hidden = rnn_step(input_=x_mat[i],
+                          state=hidden,
+                          wx=wx,
+                          wh=wh,
+                          b=b,
+                          num_hidden=num_hidden)
+        # states.append(hidden)
+        fc = mx.sym.FullyConnected(data=hidden, weight=wa, bias=ba,
+                                   num_hidden=n_labels,
+                                   name='pred',
+                                   )
+        sm = mx.sym.LogisticRegressionOutput(data=fc, label=label[i],
+                                             name='logistic')
+        output.append(sm)
+
+    output = mx.sym.Concat(*output, dim=1)  # important to set dim=1
+    return mx.sym.Reshape(output, shape=(batch_size, seq_len, 1))
+
+
+class SimpleBatch(object):
+    def __init__(self, data_names, data, label_names, label):
+        self.data = data
+        self.label = label
+        self.data_names = data_names
+        self.label_names = label_names
+
+    @property
+    def provide_data(self):
+        return [(n, x.shape) for n, x in zip(self.data_names, self.data)]
+
+    @property
+    def provide_label(self):
+        return [(n, x.shape) for n, x in zip(self.label_names, self.label)]
+
+
+class DataIter(mx.io.DataIter):
+    def __init__(self, n_samples, batch_size, seq_len, n_inputs,
+                 num_label, init_states, create_dataset):
+        super(DataIter, self).__init__()
+        self.batch_size = batch_size
+        self.n_samples = n_samples
+
+        self.seq_len = seq_len
+        self.num_label = num_label
+        self.init_states = init_states
+        # self.init_state_names = [x[0] for x in self.init_states]
+        # self.init_state_arrays = [mx.nd.zeros(x[1]) for x in init_states]
+
+        self.provide_data = [
+            ('data', (batch_size, seq_len, n_inputs))] + init_states
+        self.provide_label = [('label', (batch_size, seq_len, num_label))]
+
+        X, T = create_dataset(n_samples, seq_len)
+        self.data = X
+        self.labels = T
+
+    def __iter__(self):
+        batch_data = []
+        batch_label = []
+        # batch_label_weight = []
+        for i in xrange(self.n_samples):
+
+            batch_data.append(self.data[i])
+            batch_label.append(self.labels[i])
+            # batch_label_weight.append(label_weight)
+            if len(batch_data) == self.batch_size:
+                # + self.init_state_arrays
+                data_all = [mx.nd.array(batch_data), ]
+                label_all = [mx.nd.array(batch_label), ]
+
+                data_names = ['data']  # + self.init_state_names
+                label_names = ['label']
+                batch_data = []
+                batch_label = []
+                yield SimpleBatch(data_names, data_all, label_names, label_all)
+
+    # def reset(self):
+    #     pass
