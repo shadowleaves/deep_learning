@@ -137,8 +137,7 @@ if __name__ == '__main__':
         # ('wa', (n_labels, num_hidden)),
         # ('ba', (n_labels, )),
     ]
-    X, T = create_dataset(nb_train, seq_len)
-
+    # X, T = create_dataset(nb_train, seq_len)
     data_train = DataIter(nb_train, batch_size, seq_len, n_inputs,
                           n_labels, init_states,
                           create_dataset=create_dataset)
