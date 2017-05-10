@@ -6,6 +6,7 @@ __pycache__/
 # zip
 *.gz
 *.tar
+*.pkl
 
 # C extensions
 *.so
