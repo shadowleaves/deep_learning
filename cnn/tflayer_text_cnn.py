@@ -18,6 +18,7 @@ from __future__ import division, print_function, absolute_import
 
 import tensorflow as tf
 import tensorlayer as tl
+import numpy as np
 
 # from tensorlayer.prepro import pad_sequences
 # import tflearn
@@ -31,16 +32,19 @@ from tflearn.datasets import imdb
 # IMDB Dataset loading
 train, test, _ = imdb.load_data(path='imdb.pkl', n_words=10000,
                                 valid_portion=0.1)
-trainX, trainY = train
-testX, testY = test
+X_train, y_train = train
+X_val, y_val = test
 
 # Data preprocessing
 # Sequence padding
-trainX = pad_sequences(trainX, maxlen=100, value=0.)
-testX = pad_sequences(testX, maxlen=100, value=0.)
+X_train = pad_sequences(X_train, maxlen=100, value=0.)
+X_val = pad_sequences(X_val, maxlen=100, value=0.)
+
+y_train = np.array(y_train, dtype='int32')
+y_val = np.array(y_val, dtype='int32')
 # Converting labels to binary vectors
-trainY = to_categorical(trainY, nb_classes=2)
-testY = to_categorical(testY, nb_classes=2)
+# y_train = to_categorical(y_train, nb_classes=2)
+# Y_val = to_categorical(Y_val, nb_classes=2)
 
 # Building convolutional network
 # embedding
@@ -63,7 +67,6 @@ branch1 = tl.layers.Conv1dLayer(network,
                                 padding='VALID',
                                 name='branch1',
                                 )
-
 branch2 = tl.layers.Conv1dLayer(network,
                                 act=tf.nn.relu,
                                 shape=[4, nbf, nbf],
@@ -71,7 +74,6 @@ branch2 = tl.layers.Conv1dLayer(network,
                                 padding='VALID',
                                 name='branch2',
                                 )
-
 branch3 = tl.layers.Conv1dLayer(network,
                                 act=tf.nn.relu,
                                 shape=[5, nbf, nbf],
@@ -79,38 +81,46 @@ branch3 = tl.layers.Conv1dLayer(network,
                                 padding='VALID',
                                 name='branch3',
                                 )
+# reg1 = tf.contrib.layers.l2_regularizer(0.01)(branch1.all_layers[-1])
+# reg2 = tf.contrib.layers.l2_regularizer(0.01)(branch2.all_layers[-1])
+# reg3 = tf.contrib.layers.l2_regularizer(0.01)(branch3.all_layers[-1])
 
 network = tl.layers.ConcatLayer([branch1, branch2, branch3],
                                 concat_dim=1, name='concat_layer')
 
-network = tl.layers.ExpandDimsLayer(network, axis=2, name='expand_dims')
+network = tl.layers.ExpandDimsLayer(network, axis=3, name='expand_dims')
+shape = [z.value if z.value else -1 for z in
+         network.all_layers[-1].shape.dims[:-1]]
+network = tl.layers.ReshapeLayer(network, shape=shape)
+# network = tl.layers.ExpandDimsLayer(network, axis=3, name='expand_dims')
 k = network.all_layers[-1].shape[1].value
-network = tl.layers.MaxPool2d(network,
-                              filter_size=[k, 1],
-                              # filter_size=1,
-                              # strides=1,
+
+network = tl.layers.MaxPool1d(network,
+                              # filter_size=[k, 1],
+                              filter_size=k,
+                              strides=1,
                               # padding='valid',
                               )
-network = tl.layers.ReshapeLayer(network, shape=[-1, nbf])
+network = tl.layers.FlattenLayer(network)
 network = tl.layers.DropoutLayer(network, keep=0.5)
-network = tl.layers.DenseLayer(network, n_units=2, act=tf.nn.softmax)
+network = tl.layers.DenseLayer(network, n_units=2, act=tf.identity)
 network.print_layers()
 
 # define cost function and metric.
 y = network.outputs
 # y_ = tf.reshape(y_, [32, 2])
 # y = tf.reshape(y, [32, 2])
-import pdb
-pdb.set_trace()
 # y_op = tf.argmax(tf.nn.softmax(y), 1)
-cost = tl.cost.cross_entropy(y, y_, 'cost')
+
+cost = tl.cost.cross_entropy(y, y_, 'cost')  # + reg1 + reg2 + reg3
 correct_prediction = tf.equal(tf.argmax(y, 1), y_)
 acc = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+y_op = tf.argmax(tf.nn.softmax(y), 1)
 
 # define the optimizer
 train_params = network.all_params
 train_op = tf.train.AdamOptimizer(
-    learning_rate=0.001,  # beta1=0.9, beta2=0.999,
+    learning_rate=0.001, beta1=0.9, beta2=0.999,
     epsilon=1e-08,
     use_locking=False,
 ).minimize(cost, var_list=train_params)
@@ -124,12 +134,13 @@ network.print_params()
 network.print_layers()
 
 # train the network
-tl.utils.fit(sess, network, train_op, cost, trainX, trainY, x, y_,
-             # acc=acc,
+tl.utils.fit(sess, network, train_op, cost, X_train, y_train, x, y_,
+             acc=acc,
              batch_size=32, n_epoch=5, print_freq=1,
-             X_val=testX, y_val=testY,
+             X_val=X_val, y_val=y_val,
              eval_train=False)
 
+sess.close()
 # import pdb
 # pdb.set_trace()
 # y = network.outpu
@@ -143,5 +154,5 @@ tl.utils.fit(sess, network, train_op, cost, trainX, trainY, x, y_,
 #                      loss='categorical_crossentropy', name='target')
 # # Training
 # model = tflearn.DNN(network, tensorboard_verbose=0)
-# model.fit(trainX, trainY, n_epoch=5, shuffle=True, validation_set=(
-#     testX, testY), show_metric=True, batch_size=32)
+# model.fit(X_train, y_train, n_epoch=5, shuffle=True, validation_set=(
+#     X_val, Y_val), show_metric=True, batch_size=32)

@@ -46,25 +46,19 @@ nbf = 128  # doesn't have to be equal to embedding dims
 network = input_data(shape=[None, 100], name='input')
 network = tflearn.embedding(network, input_dim=10000, output_dim=embd_dims)
 branch1 = conv_1d(network, nb_filter=nbf, filter_size=3, padding='valid',
-                  activation='relu', regularizer="L2")
-
+                  activation='relu')  # , regularizer="L2")
 branch2 = conv_1d(network, nb_filter=nbf, filter_size=4, padding='valid',
-                  activation='relu', regularizer="L2")
+                  activation='relu')  # , regularizer="L2")
 branch3 = conv_1d(network, nb_filter=nbf, filter_size=5, padding='valid',
-                  activation='relu', regularizer="L2")
+                  activation='relu')  # , regularizer="L2")
 network = merge([branch1, branch2, branch3], mode='concat', axis=1)
 network = tf.expand_dims(network, 2)
-# import pdb
-# pdb.set_trace()
 network = global_max_pool(network)
 
 network = dropout(network, 0.5)
 network = fully_connected(network, 2, activation='softmax')
 network = regression(network, optimizer='adam', learning_rate=0.001,
                      loss='categorical_crossentropy', name='target')
-
-import pdb
-pdb.set_trace()
 
 # Training
 model = tflearn.DNN(network, tensorboard_verbose=0)
