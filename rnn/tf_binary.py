@@ -121,7 +121,7 @@ def RNN(x, wx, wh, b, wa, ba,
         # z = tf.sigmoid(z)
         output.append(z)
 
-    output = tf.transpose(tf.pack(output), [1, 0, 2])
+    output = tf.transpose(tf.stack(output), [1, 0, 2])
     return output
 
 
@@ -186,7 +186,7 @@ def main():
     # Define loss and optimizer
     # cost = cost_func(pred, y)
     cost = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(
-        pred, y))
+        logits=pred, labels=y))
 
     optimizer = tf.train.RMSPropOptimizer(
         learning_rate=0.02,

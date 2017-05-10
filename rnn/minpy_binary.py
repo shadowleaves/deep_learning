@@ -235,9 +235,6 @@ class CustomSolver(Solver):
         #     import pdb
         #     pdb.set_trace()
 
-        import pdb
-        pdb.set_trace()
-
         return acc_count / num_samples
 
 
